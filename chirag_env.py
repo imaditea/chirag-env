@@ -262,8 +262,6 @@ class CHIRAGEnv:
 
         Returns:
             Tuple of (observation, info).
-            observation: dict with question, retrieved_chunks, difficulty_level
-            info: dict with question, difficulty, streak
         """
         random.shuffle(self._dataset)
         self._current_idx         = 0
@@ -328,9 +326,6 @@ class CHIRAGEnv:
         self._current_idx = (self._current_idx + 1) % len(self._dataset)
         self.state = self._build_state()
 
-        # Calculate a safe score strictly between 0 and 1 for the grader
-        safe_score = 0.99 if correct else 0.01
-
         info = {
             "difficulty":          difficulty,
             "answer_found":        answer_found,
@@ -341,7 +336,7 @@ class CHIRAGEnv:
             "action_taken":        ACTION_NAMES.get(action, str(action)),
             "success":             correct,
             "streak":              self._consecutive_correct,
-            "score":               safe_score,
+            "score":               reward, # Now inherently safe
         }
 
         return self.state, reward, terminated, truncated, info
@@ -355,7 +350,7 @@ class CHIRAGEnv:
         print(f"  Question   : {self._last_question or 'N/A'}")
         print(f"  Difficulty : {self._last_difficulty}")
         print(f"  Action     : [{self._last_action}] {ACTION_NAMES.get(self._last_action, 'N/A')}")
-        print(f"  Reward     : {self._last_reward:+.1f}")
+        print(f"  Reward     : {self._last_reward:+.2f}")
         print(f"  Consecutive Correct: {self._consecutive_correct}")
         print(f"\n  Retrieved Chunks:")
         for i, chunk in enumerate(self._last_chunks, 1):
@@ -374,8 +369,8 @@ class CHIRAGEnv:
                     "contained in a single document chunk."
                 ),
                 "reward_rules": {
-                    "correct_answer": +10,
-                    "hallucination":  -5,
+                    "correct_answer": 0.99,
+                    "hallucination":  0.01,
                 },
                 "success_criterion": "Retrieve the correct chunk and avoid hallucination.",
                 "grader": "exact_match",
@@ -389,9 +384,9 @@ class CHIRAGEnv:
                     "two different document chunks."
                 ),
                 "reward_rules": {
-                    "fully_correct":     +15,
-                    "partially_correct": +5,
-                    "wrong":             -5,
+                    "fully_correct":     0.99,
+                    "partially_correct": 0.50,
+                    "wrong":             0.01,
                 },
                 "success_criterion": (
                     "Retrieve and synthesise information from at least two chunks."
@@ -408,8 +403,8 @@ class CHIRAGEnv:
                     "'I do not know' rather than hallucinate."
                 ),
                 "reward_rules": {
-                    "correctly_says_idk":            +10,
-                    "hallucinates_confident_answer": -10,
+                    "correctly_says_idk":            0.99,
+                    "hallucinates_confident_answer": 0.01,
                 },
                 "success_criterion": (
                     "Select action 3 (IDK) when the answer is not in the corpus."
@@ -456,6 +451,7 @@ class CHIRAGEnv:
     ) -> Tuple[float, bool]:
         """
         Compute reward based on difficulty level and action outcome.
+        Mapped to strict bounds (0.01 to 0.99) for evaluator compatibility.
 
         Returns:
             (reward, is_correct)
@@ -463,29 +459,29 @@ class CHIRAGEnv:
         # ── HARD questions (difficulty 3) ────────────────────────────────────
         if difficulty == 3:
             if action == ACTION_IDK:
-                return +10.0, True
+                return 0.99, True
             else:
-                return -10.0, False
+                return 0.01, False
 
         # ── EASY questions (difficulty 1) ────────────────────────────────────
         if difficulty == 1:
             if answer_found and action != ACTION_IDK:
-                return +10.0, True
+                return 0.99, True
             elif action == ACTION_IDK:
-                return -5.0, False
+                return 0.01, False
             else:
-                return -5.0, False
+                return 0.01, False
 
         # ── MEDIUM questions (difficulty 2) ──────────────────────────────────
         if difficulty == 2:
             if action == ACTION_IDK:
-                return -5.0, False
+                return 0.01, False
             if answer_found:
                 if action in (ACTION_SEMANTIC_SEARCH, ACTION_HYBRID_SEARCH):
-                    return +15.0, True
+                    return 0.99, True
                 else:
-                    return +5.0, False
+                    return 0.50, False
             else:
-                return -5.0, False
+                return 0.01, False
 
-        return 0.0, False
+        return 0.01, False
