@@ -378,7 +378,7 @@ class CHIRAGEnv:
                     "hallucination":  0.01,
                 },
                 "success_criterion": "Retrieve the correct chunk and avoid hallucination.",
-                "grader": exact_match_grader, 
+                "graders": [exact_match_grader], 
             },
             {
                 "id":          2,
@@ -396,7 +396,7 @@ class CHIRAGEnv:
                 "success_criterion": (
                     "Retrieve and synthesise information from at least two chunks."
                 ),
-                "grader": exact_match_grader, 
+                "graders": [exact_match_grader], 
             },
             {
                 "id":          3,
@@ -414,7 +414,7 @@ class CHIRAGEnv:
                 "success_criterion": (
                     "Select action 3 (IDK) when the answer is not in the corpus."
                 ),
-                "grader": exact_match_grader, 
+                "graders": [exact_match_grader], 
             },
         ]
 
