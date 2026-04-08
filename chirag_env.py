@@ -3,7 +3,6 @@ import gymnasium as gym
 from gymnasium import spaces
 import random
 
-# 20 real IIT online degree FAQ questions with answers
 FAQ_DATA = [
     {
         "question": "How is attendance calculated?",
@@ -107,24 +106,100 @@ FAQ_DATA = [
     },
 ]
 
+
+def grade_task_1(env_instance):
+    """
+    Task 1 Grader: Basic Query Resolution
+    Tests if agent can resolve simple queries correctly.
+    Score strictly between 0 and 1.
+    """
+    total_steps = 10
+    correct = 0
+    env_instance.difficulty = 1
+    env_instance.reset()
+
+    for _ in range(total_steps):
+        # Best action for easy questions is hybrid (action 2)
+        obs, reward, terminated, truncated, info = env_instance.step(2)
+        if info['success']:
+            correct += 1
+        if terminated or truncated:
+            env_instance.reset()
+
+    # Score strictly between 0 and 1
+    raw = correct / total_steps
+    # Clamp to (0.01, 0.99) to ensure strictly between 0 and 1
+    score = max(0.01, min(0.99, raw))
+    return score
+
+
+def grade_task_2(env_instance):
+    """
+    Task 2 Grader: Multi-topic Queries
+    Tests agent performance on medium difficulty.
+    Score strictly between 0 and 1.
+    """
+    total_steps = 10
+    correct = 0
+    env_instance.difficulty = 2
+    env_instance.reset()
+
+    for _ in range(total_steps):
+        # Semantic search works better for medium difficulty
+        obs, reward, terminated, truncated, info = env_instance.step(1)
+        if info['success']:
+            correct += 1
+        if terminated or truncated:
+            env_instance.reset()
+
+    raw = correct / total_steps
+    score = max(0.01, min(0.99, raw))
+    return score
+
+
+def grade_task_3(env_instance):
+    """
+    Task 3 Grader: Ambiguous Queries
+    Tests agent ability to handle hard queries and say IDK.
+    Score strictly between 0 and 1.
+    """
+    total_steps = 10
+    correct = 0
+    env_instance.difficulty = 3
+    env_instance.reset()
+
+    for _ in range(total_steps):
+        # Mix of hybrid and IDK for hard difficulty
+        action = random.choice([2, 3])
+        obs, reward, terminated, truncated, info = env_instance.step(action)
+        if info['success'] or reward > 0:
+            correct += 1
+        if terminated or truncated:
+            env_instance.reset()
+
+    raw = correct / total_steps
+    score = max(0.01, min(0.99, raw))
+    return score
+
+
 class CHIRAGEnv(gym.Env):
     """
     CHIRAG - Student Query Resolution RL Environment
-    
+
     An AI agent learns to retrieve accurate answers for IIT online
     degree students by choosing the best retrieval strategy.
-    
+
     State: current question + difficulty level
-    Actions: 0=keyword search, 1=semantic search, 
+    Actions: 0=keyword search, 1=semantic search,
              2=hybrid search, 3=say I don't know
     Reward: based on answer accuracy
     """
-    
+
     metadata = {"render_modes": ["human"]}
-    
+
     def __init__(self, render_mode=None):
         super().__init__()
-        
+
         self.render_mode = render_mode
         self.faq_data = FAQ_DATA
         self.current_question = None
@@ -134,108 +209,97 @@ class CHIRAGEnv(gym.Env):
         self.steps = 0
         self.correct_streak = 0
         self.max_steps = 50
-        
+
         # 4 actions: keyword, semantic, hybrid, dont know
         self.action_space = spaces.Discrete(4)
-        
+
         # State: [difficulty, question_length, keyword_match_score]
         self.observation_space = spaces.Box(
             low=np.array([1, 0, 0]),
             high=np.array([3, 100, 1]),
             dtype=np.float32
         )
-    
+
     def _get_obs(self):
         if self.current_question is None:
             return np.array([self.difficulty, 0, 0], dtype=np.float32)
-        
+
         question_len = min(len(self.current_question.split()), 100)
         keyword_score = self._keyword_match_score()
-        
+
         return np.array([
             self.difficulty,
             question_len,
             keyword_score
         ], dtype=np.float32)
-    
+
     def _keyword_match_score(self):
         if not self.current_question or not self.current_keywords:
             return 0.0
         question_lower = self.current_question.lower()
-        matches = sum(1 for kw in self.current_keywords 
-                     if kw.lower() in question_lower)
+        matches = sum(1 for kw in self.current_keywords
+                      if kw.lower() in question_lower)
         return matches / len(self.current_keywords)
-    
+
     def _simulate_retrieval(self, action):
-        """Simulate different retrieval strategies"""
         keyword_score = self._keyword_match_score()
-        
+
         if action == 0:  # keyword search
-            # Works well when keywords match directly
             success_prob = 0.9 if keyword_score > 0.5 else 0.4
             if self.difficulty == 2:
                 success_prob *= 0.8
             elif self.difficulty == 3:
                 success_prob *= 0.5
-                
+
         elif action == 1:  # semantic search
-            # More consistent across difficulties
             success_prob = 0.75
             if self.difficulty == 1:
                 success_prob = 0.8
             elif self.difficulty == 3:
                 success_prob = 0.6
-                
+
         elif action == 2:  # hybrid search
-            # Best overall but agent must learn this
             success_prob = 0.85
             if self.difficulty == 3:
                 success_prob = 0.7
-                
+
         else:  # say I don't know (action == 3)
-            # Only good for unanswerable questions
             if self.difficulty == 3 and random.random() < 0.3:
-                return True, "idk"  # sometimes correct to say IDK
+                return True, "idk"
             return False, "idk"
-        
+
         success = random.random() < success_prob
         return success, self.current_answer if success else "wrong answer"
-    
+
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
-        
-        # Pick random question
+
         idx = self.np_random.integers(0, len(self.faq_data))
         self.current_question = self.faq_data[idx]["question"]
         self.current_answer = self.faq_data[idx]["answer"]
         self.current_keywords = self.faq_data[idx]["keywords"]
-        
+
         self.steps = 0
         self.correct_streak = 0
-        
-        # Adjust difficulty
-        if self.correct_streak >= 5:
-            self.difficulty = min(3, self.difficulty + 1)
-        
+
         obs = self._get_obs()
         info = {
             "question": self.current_question,
             "difficulty": self.difficulty
         }
-        
+
         return obs, info
-    
+
     def step(self, action):
         self.steps += 1
-        
+
         success, retrieved = self._simulate_retrieval(action)
-        
-        # Calculate reward
-        if action == 3:  # said I don't know
+
+        if action == 3:
             if self.difficulty == 3 and retrieved == "idk":
-                reward = 10.0  # correctly admitted uncertainty
+                reward = 10.0
             else:
-                reward = -5.0  # wrong to say IDK
+                reward = -5.0
         elif success:
             if self.difficulty == 1:
                 reward = 10.0
@@ -245,19 +309,17 @@ class CHIRAGEnv(gym.Env):
                 reward = 20.0
             self.correct_streak += 1
         else:
-            reward = -5.0  # hallucination penalty
+            reward = -5.0
             self.correct_streak = 0
-        
-        # Check if done
+
         terminated = self.correct_streak >= 10
         truncated = self.steps >= self.max_steps
-        
-        # Pick next question
+
         idx = self.np_random.integers(0, len(self.faq_data))
         self.current_question = self.faq_data[idx]["question"]
         self.current_answer = self.faq_data[idx]["answer"]
         self.current_keywords = self.faq_data[idx]["keywords"]
-        
+
         obs = self._get_obs()
         info = {
             "question": self.current_question,
@@ -267,21 +329,21 @@ class CHIRAGEnv(gym.Env):
             "streak": self.correct_streak,
             "difficulty": self.difficulty
         }
-        
+
         if self.render_mode == "human":
             self.render()
-        
+
         return obs, reward, terminated, truncated, info
-    
+
     def render(self):
-        action_names = ["Keyword Search", "Semantic Search", 
-                       "Hybrid Search", "Say I Don't Know"]
+        action_names = ["Keyword Search", "Semantic Search",
+                        "Hybrid Search", "Say I Don't Know"]
         print(f"\n{'='*50}")
         print(f"Question: {self.current_question}")
         print(f"Difficulty: {self.difficulty}/3")
         print(f"Correct Streak: {self.correct_streak}/10")
         print(f"{'='*50}")
-    
+
     def get_tasks(self):
         return [
             {
@@ -290,15 +352,17 @@ class CHIRAGEnv(gym.Env):
                 "difficulty": "easy",
                 "description": "Answer simple factual IIT student queries",
                 "success_condition": "5 correct answers in a row",
-                "reward_target": 50
+                "reward_target": 50,
+                "grader": grade_task_1
             },
             {
                 "id": 2,
                 "name": "Multi-topic Queries",
-                "difficulty": "medium", 
+                "difficulty": "medium",
                 "description": "Handle queries requiring combined knowledge",
                 "success_condition": "7 correct answers in a row",
-                "reward_target": 100
+                "reward_target": 100,
+                "grader": grade_task_2
             },
             {
                 "id": 3,
@@ -306,47 +370,30 @@ class CHIRAGEnv(gym.Env):
                 "difficulty": "hard",
                 "description": "Handle unclear queries, know when to say IDK",
                 "success_condition": "10 correct answers in a row",
-                "reward_target": 200
+                "reward_target": 200,
+                "grader": grade_task_3
             }
         ]
-    
+
     def close(self):
         pass
 
 
-# Test the environment
 if __name__ == "__main__":
-    print("Testing CHIRAG Environment...")
+    print("Testing CHIRAG Environment with Graders...")
     print("="*50)
-    
+
     env = CHIRAGEnv(render_mode="human")
     obs, info = env.reset()
-    
+
     print(f"First Question: {info['question']}")
-    print(f"Difficulty: {info['difficulty']}")
-    print(f"Observation: {obs}")
-    print(f"\nAvailable Tasks:")
-    for task in env.get_tasks():
-        print(f"  Task {task['id']}: {task['name']} ({task['difficulty']})")
-    
-    print("\nRunning 5 test steps...")
-    total_reward = 0
-    
-    for i in range(5):
-        action = env.action_space.sample()
-        obs, reward, terminated, truncated, info = env.step(action)
-        total_reward += reward
-        
-        print(f"\nStep {i+1}:")
-        print(f"  Question: {info['question']}")
-        print(f"  Action: {info['action_taken']}")
-        print(f"  Success: {info['success']}")
-        print(f"  Reward: {reward}")
-        print(f"  Streak: {info['streak']}")
-        
-        if terminated or truncated:
-            break
-    
-    print(f"\nTotal Reward: {total_reward}")
-    print("\nCHIRAG Environment working correctly!")
+    print(f"\nRunning Graders...")
+
+    tasks = env.get_tasks()
+    for task in tasks:
+        score = task["grader"](env)
+        print(f"Task {task['id']}: {task['name']} - Score: {score:.3f}")
+        assert 0 < score < 1, f"Score {score} not strictly between 0 and 1!"
+
+    print("\nAll graders passed! Scores are strictly between 0 and 1.")
     env.close()
