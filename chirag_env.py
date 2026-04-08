@@ -328,6 +328,9 @@ class CHIRAGEnv:
         self._current_idx = (self._current_idx + 1) % len(self._dataset)
         self.state = self._build_state()
 
+        # Calculate a safe score strictly between 0 and 1 for the grader
+        safe_score = 0.99 if correct else 0.01
+
         info = {
             "difficulty":          difficulty,
             "answer_found":        answer_found,
@@ -338,6 +341,7 @@ class CHIRAGEnv:
             "action_taken":        ACTION_NAMES.get(action, str(action)),
             "success":             correct,
             "streak":              self._consecutive_correct,
+            "score":               safe_score,
         }
 
         return self.state, reward, terminated, truncated, info
@@ -374,6 +378,7 @@ class CHIRAGEnv:
                     "hallucination":  -5,
                 },
                 "success_criterion": "Retrieve the correct chunk and avoid hallucination.",
+                "grader": "exact_match",
             },
             {
                 "id":          2,
@@ -391,6 +396,7 @@ class CHIRAGEnv:
                 "success_criterion": (
                     "Retrieve and synthesise information from at least two chunks."
                 ),
+                "grader": "exact_match",
             },
             {
                 "id":          3,
@@ -408,6 +414,7 @@ class CHIRAGEnv:
                 "success_criterion": (
                     "Select action 3 (IDK) when the answer is not in the corpus."
                 ),
+                "grader": "exact_match",
             },
         ]
 
