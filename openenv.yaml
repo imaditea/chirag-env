@@ -1,61 +1,28 @@
+spec_version: 1
 name: chirag-env
 version: "1.0.0"
 description: CHIRAG - Contextual Helper for IIT Resolution and Guidance
+type: environment
 
-observation_space:
-  type: object
-  properties:
-    question:
-      type: string
-    retrieved_chunks:
-      type: array
-    difficulty_level:
-      type: integer
-
-action_space:
-  type: discrete
-  n: 4
-  actions:
-    - Keyword Search
-    - Semantic Search
-    - Hybrid Search
-    - Say I Don't Know
+runtime:
+  app: server.app:app
+  port: 7860
 
 tasks:
   - id: task_easy
     name: Easy - Direct Factual Retrieval
     difficulty: easy
     reward_range: [0.0, 1.0]
-    grader:
-      type: function
-      path: graders/easy_grader.py
-      fn: grade
+    grader: graders/easy_grader.py
 
   - id: task_medium
     name: Medium - Multi-Chunk Reasoning
     difficulty: medium
     reward_range: [0.0, 1.0]
-    grader:
-      type: function
-      path: graders/medium_grader.py
-      fn: grade
+    grader: graders/medium_grader.py
 
   - id: task_hard
     name: Hard - Ambiguity Detection
     difficulty: hard
     reward_range: [0.0, 1.0]
-    grader:
-      type: function
-      path: graders/hard_grader.py
-      fn: grade
-
-endpoints:
-  reset: POST /reset
-  step: POST /step
-  state: GET /state
-  health: GET /health
-
-runtime:
-  framework: fastapi
-  python: "3.11"
-  port: 7860
+    grader: graders/hard_grader.py
