@@ -371,28 +371,27 @@ class CHIRAGEnv:
         elif action == ACTION_IDK:
             return ["[Agent elected not to retrieve - responding with I do not know]"]
         return []
-
-    def _compute_reward(self, action: int, answer_found: bool, ground_truth: str, difficulty: int) -> Tuple[float, bool]:
-        if difficulty == 3:
-            if action == ACTION_IDK:
-                return +10.0, True
+def _compute_reward(self, action: int, answer_found: bool, ground_truth: str, difficulty: int) -> Tuple[float, bool]:
+    if difficulty == 3:
+        if action == ACTION_IDK:
+            return 0.999, True
+        else:
+            return 0.001, False
+    if difficulty == 1:
+        if answer_found and action != ACTION_IDK:
+            return 0.999, True
+        elif action == ACTION_IDK:
+            return 0.001, False
+        else:
+            return 0.001, False
+    if difficulty == 2:
+        if action == ACTION_IDK:
+            return 0.001, False
+        if answer_found:
+            if action in (ACTION_SEMANTIC_SEARCH, ACTION_HYBRID_SEARCH):
+                return 0.999, True
             else:
-                return -10.0, False
-        if difficulty == 1:
-            if answer_found and action != ACTION_IDK:
-                return +10.0, True
-            elif action == ACTION_IDK:
-                return -5.0, False
-            else:
-                return -5.0, False
-        if difficulty == 2:
-            if action == ACTION_IDK:
-                return -5.0, False
-            if answer_found:
-                if action in (ACTION_SEMANTIC_SEARCH, ACTION_HYBRID_SEARCH):
-                    return +15.0, True
-                else:
-                    return +5.0, False
-            else:
-                return -5.0, False
-        return 0.0, False
+                return 0.5, False
+        else:
+            return 0.001, False
+    return 0.5, False
