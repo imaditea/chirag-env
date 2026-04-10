@@ -32,7 +32,13 @@ def state():
 
 @app.get("/tasks")
 def tasks():
-    return {"tasks": env.get_tasks()}
+   return {
+    "tasks": [
+        {"id": "task_easy", "name": "Easy - Direct Factual Retrieval", "difficulty": "easy", "reward_range": [0.0, 1.0], "grader": "graders/easy_grader.py"},
+        {"id": "task_medium", "name": "Medium - Multi-Chunk Reasoning", "difficulty": "medium", "reward_range": [0.0, 1.0], "grader": "graders/medium_grader.py"},
+        {"id": "task_hard", "name": "Hard - Ambiguity Detection", "difficulty": "hard", "reward_range": [0.0, 1.0], "grader": "graders/hard_grader.py"}
+    ]
+}
 
 def main():
     uvicorn.run(app, host="0.0.0.0", port=7860)
