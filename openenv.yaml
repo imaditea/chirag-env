@@ -1,25 +1,22 @@
-spec_version: 1
-name: chirag-env
-version: "1.0.0"
-description: CHIRAG - Contextual Helper for IIT Resolution and Guidance
-type: environment
-
-runtime:
-  app: app:app
-  port: 7860
+cat > openenv.yaml << 'EOF'
+name: CHIRAGEnv
+description: Student Query Resolution RL Environment for IIT Online Degree Students
+version: "1.0"
+author: Aditi Singh
 
 tasks:
   - id: task_easy
-    name: Easy Task
+    name: Basic Query Resolution
     difficulty: easy
     grader: graders.easy_grader:EasyGrader
 
   - id: task_medium
-    name: Medium Task
+    name: Multi-topic Queries
     difficulty: medium
     grader: graders.medium_grader:MediumGrader
 
   - id: task_hard
-    name: Hard Task
+    name: Ambiguous Queries
     difficulty: hard
     grader: graders.hard_grader:HardGrader
+EOF
