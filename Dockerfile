@@ -7,4 +7,4 @@ ENV PYTHONPATH=/app
 
 RUN pip install numpy gymnasium pyyaml fastapi uvicorn requests
 
-CMD ["python", "server/app.py"]
+CMD ["uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "8000"]
