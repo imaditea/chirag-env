@@ -5,6 +5,6 @@ COPY . /app
 
 ENV PYTHONPATH=/app
 
-RUN pip install numpy gymnasium pyyaml
+RUN pip install numpy gymnasium pyyaml fastapi uvicorn requests
 
-CMD ["python", "chirag_env.py"]
+CMD ["python", "server/app.py"]
